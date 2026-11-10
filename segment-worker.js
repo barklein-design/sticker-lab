@@ -31,19 +31,28 @@ self.onmessage = async ({data}) => {
     for(let index=0;index<detections.length;index++) {
       const detection=detections[index], b=detection.box;
       report(`מחלצים מדבקה ${index+1} מתוך ${detections.length}…`);
-      // This SlimSAM export accepts point prompts. The detector supplies a
-      // foreground center and four background points just outside its box.
+      // Sample five possible foreground locations: a box center can land
+      // between limbs or inside a curled animal, rather than on the subject.
       const margin=8;
       const left=Math.max(0,b.xmin-margin),right=Math.min(data.width-1,b.xmax+margin);
       const top=Math.max(0,b.ymin-margin),bottom=Math.min(data.height-1,b.ymax+margin);
-      const points=[[(b.xmin+b.xmax)/2,(b.ymin+b.ymax)/2],[left,top],[right,top],[left,bottom],[right,bottom]];
-      const corners=processor.reshape_input_points([points],prepared.original_sizes,prepared.reshaped_input_sizes);
-      const labels=new kit.Tensor('int64',BigInt64Array.from([1n,0n,0n,0n,0n]),[1,1,5]);
+      const locations=[[.5,.5],[.3,.3],[.7,.3],[.3,.7],[.7,.7]];
+      const points=locations.map(([fx,fy])=>[[b.xmin+(b.xmax-b.xmin)*fx,b.ymin+(b.ymax-b.ymin)*fy],[left,top],[right,top],[left,bottom],[right,bottom]]);
+      const corners=processor.reshape_input_points(points,prepared.original_sizes,prepared.reshaped_input_sizes);
+      const labels=new kit.Tensor('int64',BigInt64Array.from(locations.flatMap(()=>[1n,0n,0n,0n,0n])),[1,5,5]);
       const result=await sam({...embeddings,input_points:corners,input_labels:labels});
       const masks=await processor.post_process_masks(result.pred_masks,prepared.original_sizes,prepared.reshaped_input_sizes);
       const scores=result.iou_scores.data;
-      let best=0;for(let i=1;i<scores.length;i++)if(scores[i]>scores[best])best=i;
       const area=data.width*data.height;
+      let best=0,bestFit=-1;
+      for(let i=0;i<scores.length;i++){
+        const candidate=maskBounds(masks[0].data.subarray(i*area,(i+1)*area),data.width,data.height);
+        if(!candidate)continue;
+        const intersection=Math.max(0,Math.min(candidate.left+candidate.width,b.xmax)-Math.max(candidate.left,b.xmin))*Math.max(0,Math.min(candidate.top+candidate.height,b.ymax)-Math.max(candidate.top,b.ymin));
+        const union=candidate.width*candidate.height+(b.xmax-b.xmin)*(b.ymax-b.ymin)-intersection;
+        const fit=(intersection/Math.max(1,union))*Math.max(0,scores[i]);
+        if(fit>bestFit){bestFit=fit;best=i;}
+      }
       const mask=new Uint8Array(masks[0].data.slice(best*area,(best+1)*area));
       const bounds=maskBounds(mask,data.width,data.height);
       if(bounds && bounds.count>80 && bounds.count<area*0.95){

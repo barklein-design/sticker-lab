@@ -46,7 +46,7 @@ $('extract').onclick=()=>{
   if(!sourceCanvas||busy)return;
   setBusy(true);const generation=++run, sourceId=sourceVersion;
   stickers=stickers.filter(s=>s.sourceId!==sourceId);renderTray();status('מתחילים חילוץ אוטומטי…');
-  worker ||= new Worker(new URL('./segment-worker.js?v=3',import.meta.url),{type:'module'});
+  worker ||= new Worker(new URL('./segment-worker.js?v=4',import.meta.url),{type:'module'});
   worker.onmessage=async({data})=>{
     if(generation!==run)return;
     if(data.type==='status')status(data.text);
