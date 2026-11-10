@@ -1,6 +1,17 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createRandom,stampSettings,interpolateStroke,maskBounds} from './core.js';
 import {foregroundDetections,separateMasks} from './foreground.js';
+test('dominant players remain with a small nearby ball, distant spectators and chair are removed',()=>{
+ const item=(label,xmin,ymin,xmax,ymax)=>({label,score:.95,box:{xmin,ymin,xmax,ymax}});
+ const player1=item('person',30,15,52,90),player2=item('person',48,10,75,92),ball=item('sports ball',48,86,56,94);
+ const crowd=item('person',5,25,14,38),chair=item('chair',85,28,94,42);
+ assert.deepEqual(foregroundDetections([player1,player2,ball,crowd,chair],100,100),[player1,player2,ball]);
+ // Group portraits should not arbitrarily collapse to just one person.
+ const peer=item('person',3,12,25,85);
+ assert.equal(foregroundDetections([player1,player2,peer],100,100).length,3);
+ // No foreground people: a small standalone object still qualifies.
+ assert.deepEqual(foregroundDetections([ball],100,100),[ball]);
+});
 test('a couch behind cats is excluded while isolated furniture remains usable',()=>{
  const couch={label:'couch',box:{xmin:0,ymin:0,xmax:95,ymax:95}},cat={label:'cat',box:{xmin:20,ymin:20,xmax:40,ymax:80}};
  assert.deepEqual(foregroundDetections([couch,cat],100,100),[cat]);

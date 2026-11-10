@@ -1,5 +1,5 @@
 import {maskBounds} from './core.js';
-import {foregroundDetections,separateMasks} from './foreground.js';
+import {foregroundDetections,separateMasks} from './foreground.js?v=6';
 let kit, detector, sam, processor;
 const report = text => self.postMessage({type:'status',text});
 async function loadModels() {
@@ -24,7 +24,7 @@ self.onmessage = async ({data}) => {
     const image = new kit.RawImage(sourceRGBA.slice(),data.width,data.height,4);
     report('מזהים אובייקטים בתמונה…');
     const detected=await detector(image,{threshold:0.55,percentage:false});
-    const detections=foregroundDetections(detected,data.width,data.height).sort((a,b)=>b.score-a.score).slice(0,16);
+    const detections=foregroundDetections(detected,data.width,data.height,sourceRGBA).sort((a,b)=>b.score-a.score).slice(0,16);
     if(!detections.length){self.postMessage({type:'done',count:0});return;}
     report(`זוהו ${detections.length} אובייקטים. מכינים חיתוך מדויק…`);
     prepared = await processor(image);
