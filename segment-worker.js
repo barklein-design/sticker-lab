@@ -18,7 +18,9 @@ self.onmessage = async ({data}) => {
   let prepared, embeddings;
   try {
     await loadModels();
-    const image = new kit.RawImage(new Uint8ClampedArray(data.pixels),data.width,data.height,4);
+    // Processors may convert RawImage to RGB in place; preserve source RGBA.
+    const sourceRGBA = new Uint8ClampedArray(data.pixels);
+    const image = new kit.RawImage(sourceRGBA.slice(),data.width,data.height,4);
     report('מזהים אובייקטים בתמונה…');
     const detections=(await detector(image,{threshold:0.55,percentage:false})).sort((a,b)=>b.score-a.score).slice(0,16);
     if(!detections.length){self.postMessage({type:'done',count:0});return;}
@@ -44,8 +46,8 @@ self.onmessage = async ({data}) => {
         const pixels=context.createImageData(bounds.width,bounds.height);
         for(let y=0;y<bounds.height;y++)for(let x=0;x<bounds.width;x++){
           const original=(y+bounds.top)*data.width+x+bounds.left, target=(y*bounds.width+x)*4;
-          pixels.data.set(image.data.subarray(original*4,original*4+3),target);
-          pixels.data[target+3]=mask[original]?image.data[original*4+3]:0;
+          pixels.data.set(sourceRGBA.subarray(original*4,original*4+3),target);
+          pixels.data[target+3]=mask[original]?sourceRGBA[original*4+3]:0;
         }
         context.putImageData(pixels,0,0);
         const blob=await cut.convertToBlob({type:'image/png'});

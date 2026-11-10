@@ -4,7 +4,7 @@ const defaults={size:130,sizeJitter:25,rotation:0,rotationJitter:20,hue:0,hueJit
 const settings={...defaults};
 const specs=[['size','גודל',20,350,'px'],['sizeJitter','שונות בגודל',0,90,'%'],['rotation','סיבוב',-180,180,'°'],['rotationJitter','שונות בסיבוב',0,180,'°'],['hue','שינוי גוון',-180,180,'°'],['hueJitter','שונות בגוון',0,180,'°'],['scatter','פיזור',0,180,'px'],['spacing','ריווח',10,220,'px'],['opacity','שקיפות / אטימות',10,100,'%']];
 let sourceCanvas,worker,busy=false,timeout,run=0,stickers=[],history=[],redo=[],activeStroke=null,painter,background='#f7f5ee',lastPoint,remainder=0;
-let idCounter=0;
+let idCounter=0, sourceVersion=0;
 const labels={person:'דמות',cat:'חתול',dog:'כלב','sports ball':'כדור',bird:'ציפור',car:'מכונית',bottle:'בקבוק',chair:'כיסא',cup:'כוס',bicycle:'אופניים',remote:'שלט',couch:'ספה',book:'ספר',backpack:'תיק',banana:'בננה',apple:'תפוח',vase:'אגרטל'};
 for(const [key,name,min,max,unit] of specs){
   const row=document.createElement('div');row.className='control'+(key.includes('Jitter')?' random':'');
@@ -24,7 +24,7 @@ async function loadImage(file,name){
     const image=await createImageBitmap(file);
     const scale=Math.min(1,1024/Math.max(image.width,image.height));
     sourceCanvas=document.createElement('canvas');sourceCanvas.width=Math.max(1,Math.round(image.width*scale));sourceCanvas.height=Math.max(1,Math.round(image.height*scale));
-    sourceCanvas.getContext('2d').drawImage(image,0,0,sourceCanvas.width,sourceCanvas.height);image.close();
+    sourceCanvas.getContext('2d').drawImage(image,0,0,sourceCanvas.width,sourceCanvas.height);image.close();sourceVersion++;
     $('source').src=sourceCanvas.toDataURL('image/jpeg',0.85);$('source-name').textContent=name;$('source-wrap').hidden=false;
     $('extract').disabled=false;status('התמונה מוכנה. לחצו על חילוץ מדבקות אוטומטי.');
   }catch{status('לא הצלחנו לפתוח את התמונה. נסו קובץ אחר.',true);}
@@ -44,12 +44,13 @@ $('example').onclick=async()=>{
 function endRun(){clearTimeout(timeout);setBusy(false);}
 $('extract').onclick=()=>{
   if(!sourceCanvas||busy)return;
-  setBusy(true);const generation=++run;status('מתחילים חילוץ אוטומטי…');
+  setBusy(true);const generation=++run, sourceId=sourceVersion;
+  stickers=stickers.filter(s=>s.sourceId!==sourceId);renderTray();status('מתחילים חילוץ אוטומטי…');
   worker ||= new Worker(new URL('./segment-worker.js',import.meta.url),{type:'module'});
   worker.onmessage=async({data})=>{
     if(generation!==run)return;
     if(data.type==='status')status(data.text);
-    if(data.type==='sticker')await addSticker(data.blob,labels[data.label]||data.label);
+    if(data.type==='sticker')await addSticker(data.blob,labels[data.label]||data.label,sourceId,generation);
     if(data.type==='done'){endRun();status(data.count?`חולצו ${data.count} מדבקות. בחרו אותן במגירה וציירו על הקנבס.`:'לא נמצאו אובייקטים מתאימים. נסו תמונה עם חפצים או דמויות ברורים.');}
     if(data.type==='error'){endRun();worker.terminate();worker=null;status('החילוץ נכשל. בדקו חיבור לאינטרנט ונסו שוב. '+data.text,true);}
   };
@@ -59,9 +60,10 @@ $('extract').onclick=()=>{
   worker.postMessage({pixels:pixels.buffer,width:sourceCanvas.width,height:sourceCanvas.height},[pixels.buffer]);
 };
 $('cancel').onclick=()=>{run++;worker?.terminate();worker=null;endRun();status('החילוץ בוטל. מדבקות שכבר חולצו נשארו במגירה.');};
-async function addSticker(blob,label){
+async function addSticker(blob,label,sourceId,generation){
   const url=URL.createObjectURL(blob),image=new Image();image.src=url;await image.decode();
-  stickers.push({id:++idCounter,url,image,label,selected:true});renderTray();
+  if(generation!==run){URL.revokeObjectURL(url);return;}
+  stickers.push({id:++idCounter,url,image,label,sourceId,selected:true});renderTray();
 }
 function renderTray(){
   $('stickers').replaceChildren();
