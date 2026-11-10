@@ -31,9 +31,14 @@ self.onmessage = async ({data}) => {
     for(let index=0;index<detections.length;index++) {
       const detection=detections[index], b=detection.box;
       report(`מחלצים מדבקה ${index+1} מתוך ${detections.length}…`);
-      // SAM box prompts are represented by the two corner labels, 2 and 3.
-      const corners=processor.reshape_input_points([[[b.xmin,b.ymin],[b.xmax,b.ymax]]],prepared.original_sizes,prepared.reshaped_input_sizes);
-      const labels=new kit.Tensor('int64',BigInt64Array.from([2n,3n]),[1,1,2]);
+      // This SlimSAM export accepts point prompts. The detector supplies a
+      // foreground center and four background points just outside its box.
+      const margin=8;
+      const left=Math.max(0,b.xmin-margin),right=Math.min(data.width-1,b.xmax+margin);
+      const top=Math.max(0,b.ymin-margin),bottom=Math.min(data.height-1,b.ymax+margin);
+      const points=[[(b.xmin+b.xmax)/2,(b.ymin+b.ymax)/2],[left,top],[right,top],[left,bottom],[right,bottom]];
+      const corners=processor.reshape_input_points([points],prepared.original_sizes,prepared.reshaped_input_sizes);
+      const labels=new kit.Tensor('int64',BigInt64Array.from([1n,0n,0n,0n,0n]),[1,1,5]);
       const result=await sam({...embeddings,input_points:corners,input_labels:labels});
       const masks=await processor.post_process_masks(result.pred_masks,prepared.original_sizes,prepared.reshaped_input_sizes);
       const scores=result.iou_scores.data;
