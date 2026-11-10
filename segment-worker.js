@@ -1,4 +1,5 @@
 import {maskBounds} from './core.js';
+import {foregroundDetections,separateMasks} from './foreground.js';
 let kit, detector, sam, processor;
 const report = text => self.postMessage({type:'status',text});
 async function loadModels() {
@@ -22,12 +23,13 @@ self.onmessage = async ({data}) => {
     const sourceRGBA = new Uint8ClampedArray(data.pixels);
     const image = new kit.RawImage(sourceRGBA.slice(),data.width,data.height,4);
     report('מזהים אובייקטים בתמונה…');
-    const detections=(await detector(image,{threshold:0.55,percentage:false})).sort((a,b)=>b.score-a.score).slice(0,16);
+    const detected=await detector(image,{threshold:0.55,percentage:false});
+    const detections=foregroundDetections(detected,data.width,data.height).sort((a,b)=>b.score-a.score).slice(0,16);
     if(!detections.length){self.postMessage({type:'done',count:0});return;}
     report(`זוהו ${detections.length} אובייקטים. מכינים חיתוך מדויק…`);
     prepared = await processor(image);
     embeddings = await sam.get_image_embeddings(prepared);
-    let count=0;
+    let count=0;const candidates=[];
     for(let index=0;index<detections.length;index++) {
       const detection=detections[index], b=detection.box;
       report(`מחלצים מדבקה ${index+1} מתוך ${detections.length}…`);
@@ -56,6 +58,14 @@ self.onmessage = async ({data}) => {
       const mask=new Uint8Array(masks[0].data.slice(best*area,(best+1)*area));
       const bounds=maskBounds(mask,data.width,data.height);
       if(bounds && bounds.count>80 && bounds.count<area*0.95){
+        candidates.push({mask,label:detection.label,score:detection.score});
+      }
+      dispose(result);dispose({corners,labels});masks.forEach(m=>m.dispose?.());
+    }
+    report('מסירים חפיפות ומכינים מדבקות נקיות…');
+    for(const candidate of separateMasks(candidates)){
+      const mask=candidate.mask,bounds=maskBounds(mask,data.width,data.height);
+      if(bounds && bounds.count>80){
         const cut=new OffscreenCanvas(bounds.width,bounds.height), context=cut.getContext('2d');
         const pixels=context.createImageData(bounds.width,bounds.height);
         for(let y=0;y<bounds.height;y++)for(let x=0;x<bounds.width;x++){
@@ -65,9 +75,8 @@ self.onmessage = async ({data}) => {
         }
         context.putImageData(pixels,0,0);
         const blob=await cut.convertToBlob({type:'image/png'});
-        self.postMessage({type:'sticker',blob,label:detection.label,score:detection.score});count++;
+        self.postMessage({type:'sticker',blob,label:candidate.label,score:candidate.score});count++;
       }
-      dispose(result);dispose({corners,labels});masks.forEach(m=>m.dispose?.());
     }
     self.postMessage({type:'done',count});
   } catch(error){self.postMessage({type:'error',text:error?.message||String(error)});}
