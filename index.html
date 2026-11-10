@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="הפכו תמונה למברשת אישית: חילוץ אוטומטי של אובייקטים וציור עם מדבקות ואקראיות.">
+<title>גזור / הדבק — מעבדת מדבקות</title>
+<link rel="stylesheet" href="style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/p5@2.3.3/lib/p5.min.js"></script>
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header><a class="brand" href="./"><span class="brand-icon">✳</span> גזור / הדבק</a><span class="subtitle">מתמונה אחת. לאינסוף קומפוזיציות.</span><span class="edition">STICKER LAB · 01</span></header>
+<main>
+<aside class="sources">
+  <div class="section-label">01 / חומרי גלם</div><h1>התמונה שלך.<br><em>המברשת שלך.</em></h1>
+  <p class="intro">העלו תמונה, חלצו אובייקטים, וציירו איתם משהו שלא היה שם קודם.</p>
+  <label class="upload" id="dropzone" for="file"><span class="plus">＋</span><strong>בחירת תמונה</strong><span>או גררו אותה לכאן · JPG / PNG / WebP</span><input id="file" type="file" accept="image/jpeg,image/png,image/webp"></label>
+  <button id="example" class="text-button">נסו תמונת דוגמה ↗</button>
+  <div id="source-wrap" hidden><img id="source" alt="התמונה המקורית"><span id="source-name"></span></div>
+  <button id="extract" class="primary" disabled>חילוץ מדבקות אוטומטי <span>↗</span></button>
+  <button id="cancel" hidden>ביטול חילוץ</button>
+  <p id="status" class="status" role="status" aria-live="polite">התמונה מעובדת במכשיר שלכם. בטעינה הראשונה נוריד את מודלי הזיהוי; זה עשוי לקחת כמה דקות.</p>
+  <div class="tray-head"><h2>מגירת המדבקות <span id="sticker-count">0</span></h2><button id="select-all" class="text-button" disabled>בחירת הכול</button></div>
+  <p class="small">בחרו כמה מדבקות כדי להגריל ביניהן בכל הטבעה.</p>
+  <div id="stickers" class="stickers"><div class="tray-empty">הדמויות והחפצים שיחולצו<br>יופיעו כאן, בלי הרקע.</div></div>
+</aside>
+<section class="studio" aria-label="משטח הציור">
+  <div class="studio-toolbar"><div><span class="live-dot"></span><strong>קנבס חופשי</strong><span class="dimensions">1200 × 800</span></div><div class="actions"><button id="undo" disabled title="ביטול משיכת מכחול">↶ ביטול</button><button id="redo" disabled>↷ שוב</button><button id="clear" disabled>ניקוי</button></div></div>
+  <div class="canvas-shell"><div id="canvas-host"></div><div id="canvas-empty"><span>↖</span><h2>כאן מתחיל משהו חדש.</h2><p>חלצו מדבקות מהתמונה, בחרו אותן וציירו.<br>לחיצה מטביעה. גרירה יוצרת רצף.</p></div></div>
+  <div class="canvas-footer"><span id="canvas-info" role="status">בחרו תמונה כדי להתחיל</span><div class="backgrounds"><span>רקע</span><button data-bg="#f7f5ee" class="swatch active" style="--swatch:#f7f5ee" aria-label="רקע נייר" aria-pressed="true"></button><button data-bg="#ffffff" class="swatch" style="--swatch:#ffffff" aria-label="רקע לבן" aria-pressed="false"></button><button data-bg="#181b22" class="swatch" style="--swatch:#181b22" aria-label="רקע כהה" aria-pressed="false"></button></div></div>
+  <div class="studio-bottom"><p>שינוי המכוונים משפיע רק על ההטבעות הבאות.<br><span>היצירה נשארת כאן עד לרענון הדף — שמרו אותה לפני שיוצאים.</span></p><button id="save" class="export" disabled>שמירת היצירה <span>↓ PNG</span></button></div>
+  <details class="notes"><summary>איך החילוץ עובד?</summary><p>המערכת מזהה אובייקטים מוכרים ומחלצת את קווי המתאר שלהם אוטומטית. היא עשויה לפספס פריטים קטנים, מוסתרים או לא מוכרים. כדורסל ושחקנים עשויים להיות מזוהים; סל אינו קטגוריה ייעודית במודל. חיתוך לא מוצלח אפשר להסיר מהמגירה. לא מומצאים חלקים שמוסתרים בתמונה.</p></details>
+</section>
+<aside class="brush"><div class="section-label">02 / המברשת הבאה</div><h2>קצת שליטה.<br><em>קצת הפתעה.</em></h2><div id="brush-preview" class="checker"><span>בחרו מדבקה</span></div><div id="controls"></div><button id="reset" class="text-button">איפוס המכוונים ↺</button><div class="tip"><strong>ניסוי קטן</strong><p>בחרו שתי מדבקות, העלו את הפיזור ואת השונות בגודל, וגררו באיטיות על הקנבס.</p></div></aside>
+</main><footer>גזור / הדבק · מעבדה ליצירה גנרטיבית <span>Bar Klein · p5.js</span></footer>
+</body></html>
